@@ -13,26 +13,35 @@ st.set_page_config(
 st.title("🔊 Texto a Audio en Chino Mandarín")
 st.write("Ingresa un texto en caracteres chinos (Hanzi) o Pinyin para generar su audio natural.")
 
-# Cargar las credenciales desde los secrets de Streamlit y crear el cliente
+# Cargar credenciales procesando la clave privada correctamente
 @st.cache_resource
 def get_tts_client():
-    if "gcp_service_account" in st.secrets:
-        # Cargar las credenciales directamente desde st.secrets
-        credentials_info = dict(st.secrets["gcp_service_account"])
-        
-        # Formatear saltos de línea si vienen escapados en la clave privada
-        if "private_key" in credentials_info:
-            credentials_info["private_key"] = credentials_info["private_key"].replace("\\n", "\n")
-            
-        credentials = service_account.Credentials.from_service_account_info(
-            credentials_info
-        )
+    if "gcp_service_account" not in st.secrets:
+        return None
+
+    try:
+        # Convertir st.secrets a un diccionario estándar de Python
+        info = dict(st.secrets["gcp_service_account"])
+
+        # Asegurar que private_key sea un string y formatear saltos de línea PEM
+        if "private_key" in info:
+            key = str(info["private_key"])
+            # Reemplazar la secuencia literal '\\n' por saltos de línea reales '\n'
+            key = key.replace("\\n", "\n")
+            # Eliminar comillas accidentales al inicio o final
+            key = key.strip("'\"")
+            info["private_key"] = key
+
+        credentials = service_account.Credentials.from_service_account_info(info)
         return texttospeech.TextToSpeechClient(credentials=credentials)
-    else:
-        st.error("⚠️ No se encontró la sección [gcp_service_account] en los Secrets de Streamlit.")
+    except Exception as e:
+        st.error(f"Error al procesar las credenciales: {e}")
         return None
 
 client = get_tts_client()
+
+if client is None:
+    st.warning("⚠️ No se encontró la sección [gcp_service_account] en los Secrets de Streamlit o las credenciales son inválidas.")
 
 # Área de texto para la entrada del usuario
 texto_chino = st.text_area(
@@ -63,7 +72,7 @@ if st.button("✨ Generar Audio", type="primary"):
     if not texto_chino.strip():
         st.warning("Por favor, ingresa algún texto antes de generar el audio.")
     elif client is None:
-        st.error("No se pudo conectar con el servicio de Google Cloud. Revisa la configuración de credenciales.")
+        st.error("No se pudo conectar con el servicio de Google Cloud. Revisa la configuración de credenciales en Secrets.")
     else:
         try:
             with st.spinner("Generando audio..."):
