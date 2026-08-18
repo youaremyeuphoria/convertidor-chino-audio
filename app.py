@@ -12,23 +12,42 @@ st.set_page_config(
 )
 
 st.title("🔊 Texto a Audio en Chino Mandarín")
+
 st.write(
     "Ingresa un texto en caracteres chinos (Hanzi) o Pinyin "
     "para generar su audio natural."
-
-    
 )
 
-# Información de la autora
-with st.sidebar:
-    st.header("Sobre la aplicación")
-    st.write("Desarrollada por **Agustina Canterino**")
+# Autora y LinkedIn
+st.markdown(
+    """
+    <div style="
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: -5px;
+        margin-bottom: 25px;
+        color: #6b7280;
+        font-size: 16px;
+    ">
+        <span>Desarrollado por <strong>Agustina Canterino</strong></span>
+        <span>•</span>
+        <a
+            href="https://www.linkedin.com/in/agustina-canterino/"
+            target="_blank"
+            style="
+                color: #0A66C2;
+                text-decoration: none;
+                font-weight: 600;
+            "
+        >
+            LinkedIn
+        </a>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-    st.link_button(
-        "💼 Conecta conmigo en LinkedIn",
-        "https://www.linkedin.com/in/agustina-canterino/",
-        use_container_width=True,
-    )
 
 
 @st.cache_resource
