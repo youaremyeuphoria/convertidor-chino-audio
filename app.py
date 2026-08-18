@@ -1,6 +1,7 @@
 import json
 import os
 import glob
+import re
 import streamlit as st
 from google.cloud import texttospeech
 from google.oauth2 import service_account
@@ -17,31 +18,58 @@ st.set_page_config(
 st.title("🔊 Texto a Audio en Chino Mandarín")
 st.write("Ingresa un texto en caracteres chinos (Hanzi) o Pinyin para generar su audio natural.")
 
+def clean_private_key(key_str: str) -> str:
+    """Limpia la clave privada de caracteres extraños y soluciona saltos de línea."""
+    if not key_str:
+        return key_str
+    
+    # 1. Reemplazar saltos de línea escapados '\\n' por '\n'
+    key_str = key_str.replace("\\n", "\n")
+    
+    # 2. Reemplazar comillas inteligentes por comillas estándar si las hubiese
+    key_str = key_str.replace("“", '"').replace("”", '"').replace("’", "'")
+    
+    # 3. Asegurar que las cabeceras PEM tengan saltos de línea limpios
+    key_str = re.sub(r'-----BEGIN PRIVATE KEY-----\s*', '-----BEGIN PRIVATE KEY-----\n', key_str)
+    key_str = re.sub(r'\s*-----END PRIVATE KEY-----', '\n-----END PRIVATE KEY-----\n', key_str)
+    
+    return key_str.strip()
+
 # ---------------------------------------------------------
 # Carga de credenciales
 # ---------------------------------------------------------
 client = None
 
-# 1. Intentar cargar desde Streamlit Secrets
+# Opción A: Intentar desde GCP_JSON en Secrets
 if "GCP_JSON" in st.secrets:
     try:
-        raw_json = st.secrets["GCP_JSON"]
-        # Si es un string, lo parseamos como JSON
-        if isinstance(raw_json, str):
-            info = json.loads(raw_json)
+        raw_data = st.secrets["GCP_JSON"]
+        if isinstance(raw_data, str):
+            info = json.loads(raw_data)
         else:
-            info = dict(raw_json)
+            info = dict(raw_data)
 
-        # Corregir saltos de línea si vienen escapados
-        if "private_key" in info and isinstance(info["private_key"], str):
-            info["private_key"] = info["private_key"].replace("\\n", "\n")
+        if "private_key" in info:
+            info["private_key"] = clean_private_key(info["private_key"])
 
         creds = service_account.Credentials.from_service_account_info(info)
         client = texttospeech.TextToSpeechClient(credentials=creds)
     except Exception as e:
-        st.error(f"Error al leer las credenciales desde Secrets: {e}")
+        st.error(f"Error al procesar GCP_JSON desde Secrets: {e}")
 
-# 2. Si no está en Secrets, buscar un archivo .json local (para Mac/PC)
+# Opción B: Si no está GCP_JSON, intentar la estructura gcp_service_account estándar
+elif "gcp_service_account" in st.secrets and not client:
+    try:
+        info = dict(st.secrets["gcp_service_account"])
+        if "private_key" in info:
+            info["private_key"] = clean_private_key(info["private_key"])
+
+        creds = service_account.Credentials.from_service_account_info(info)
+        client = texttospeech.TextToSpeechClient(credentials=creds)
+    except Exception as e:
+        st.error(f"Error al leer gcp_service_account desde Secrets: {e}")
+
+# Opción C: Buscar archivo .json local
 if not client:
     base_dir = os.path.dirname(os.path.abspath(__file__))
     json_files = glob.glob(os.path.join(base_dir, "*.json"))
