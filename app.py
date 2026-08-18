@@ -1,32 +1,26 @@
-import os
-import glob
+import json
 import streamlit as st
 from google.cloud import texttospeech
 from google.oauth2 import service_account
 
-# ---------------------------------------------------------
-# Configuración de la página
-# ---------------------------------------------------------
-st.set_page_config(
-    page_title="Convertidor de Chino a Audio",
-    page_icon="🔊",
-    layout="centered"
-)
+@st.cache_resource
+def get_tts_client():
+    if "GCP_JSON" in st.secrets:
+        info = json.loads(st.secrets["GCP_JSON"])
+        credentials = service_account.Credentials.from_service_account_info(info)
+        return texttospeech.TextToSpeechClient(credentials=credentials)
+    else:
+        st.error("No se encontró GCP_JSON en Secrets.")
+        return None
 
-st.title("🔊 Texto a Audio en Chino Mandarín")
-st.write("Ingresa un texto en caracteres chinos (Hanzi) o Pinyin para generar su audio natural.")
-
-# ---------------------------------------------------------
-# Carga de credenciales desde Secrets
-# ---------------------------------------------------------
-client = None
+client = get_tts_client()
 
 if "gcp_service_account" in st.secrets:
     try:
-        # Convertir la estructura de Secrets a un diccionario estándar
+        # Convertir Secrets a un diccionario modificable
         creds_dict = dict(st.secrets["gcp_service_account"])
         
-        # Corregir saltos de línea de la clave privada PEM
+        # Ajustar los saltos de línea de la clave privada
         if "private_key" in creds_dict:
             creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
             
@@ -35,7 +29,7 @@ if "gcp_service_account" in st.secrets:
     except Exception as e:
         st.error(f"Error al leer credenciales desde Secrets: {e}")
 
-# Respaldo para ejecución local en Mac
+# Opción local por si ejecutas en tu Mac
 if not client:
     base_dir = os.path.dirname(os.path.abspath(__file__))
     json_files = glob.glob(os.path.join(base_dir, "*.json"))
