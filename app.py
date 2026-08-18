@@ -1,7 +1,5 @@
 import os
 import glob
-import json
-import base64
 import streamlit as st
 from google.cloud import texttospeech
 from google.oauth2 import service_account
@@ -19,31 +17,20 @@ st.title("🔊 Texto a Audio en Chino Mandarín")
 st.write("Ingresa un texto en caracteres chinos (Hanzi) o Pinyin para generar su audio natural.")
 
 # ---------------------------------------------------------
-# Carga de credenciales via Base64
+# Carga de credenciales desde Secrets
 # ---------------------------------------------------------
 client = None
 
-if "GCP_BASE64" in st.secrets:
+if "gcp_service_account" in st.secrets:
     try:
-        b64_str = str(st.secrets["GCP_BASE64"]).strip().strip("'\"")
-        
-        missing_padding = len(b64_str) % 4
-        if missing_padding:
-            b64_str += '=' * (4 - missing_padding)
-            
-        json_bytes = base64.b64decode(b64_str)
-        info = json.loads(json_bytes.decode("utf-8"))
-        
-        # Corrección de saltos de línea en la clave privada
-        if "private_key" in info:
-            info["private_key"] = info["private_key"].replace("\\n", "\n")
-        
-        creds = service_account.Credentials.from_service_account_info(info)
+        creds = service_account.Credentials.from_service_account_info(
+            st.secrets["gcp_service_account"]
+        )
         client = texttospeech.TextToSpeechClient(credentials=creds)
     except Exception as e:
-        st.error(f"Error al decodificar GCP_BASE64 desde Secrets: {e}")
+        st.error(f"Error al leer credenciales desde Secrets: {e}")
 
-# Opción local por si pruebas en tu Mac sin Secrets
+# Opción local por si ejecutas en tu Mac
 if not client:
     base_dir = os.path.dirname(os.path.abspath(__file__))
     json_files = glob.glob(os.path.join(base_dir, "*.json"))
