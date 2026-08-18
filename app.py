@@ -22,22 +22,26 @@ st.write("Ingresa un texto en caracteres chinos (Hanzi) o Pinyin para generar su
 # ---------------------------------------------------------
 client = None
 
-# Opción 1: Intentar cargar desde Secrets de Streamlit Cloud
-if "gcp_service_account" in st.secrets:
+# 1. Intentar cargar desde Streamlit Secrets
+if "GCP_JSON" in st.secrets:
     try:
-        # Convertimos los Secrets a un diccionario de Python
-        info = dict(st.secrets["gcp_service_account"])
-        
-        # Si la clave privada viene como string con \n escapados, los corregimos
+        raw_json = st.secrets["GCP_JSON"]
+        # Si es un string, lo parseamos como JSON
+        if isinstance(raw_json, str):
+            info = json.loads(raw_json)
+        else:
+            info = dict(raw_json)
+
+        # Corregir saltos de línea si vienen escapados
         if "private_key" in info and isinstance(info["private_key"], str):
             info["private_key"] = info["private_key"].replace("\\n", "\n")
-            
+
         creds = service_account.Credentials.from_service_account_info(info)
         client = texttospeech.TextToSpeechClient(credentials=creds)
     except Exception as e:
         st.error(f"Error al leer las credenciales desde Secrets: {e}")
 
-# Opción 2: Si no está en Secrets, buscar el archivo .json local (para pruebas locales)
+# 2. Si no está en Secrets, buscar un archivo .json local (para Mac/PC)
 if not client:
     base_dir = os.path.dirname(os.path.abspath(__file__))
     json_files = glob.glob(os.path.join(base_dir, "*.json"))
@@ -63,7 +67,6 @@ texto_input = st.text_area(
 col1, col2 = st.columns(2)
 
 with col1:
-    # Voces en Chino Mandarín
     opciones_voces = {
         "cmn-CN-Wavenet-A (Femenina)": "cmn-CN-Wavenet-A",
         "cmn-CN-Wavenet-B (Masculina)": "cmn-CN-Wavenet-B",
@@ -89,33 +92,27 @@ if st.button("✨ Generar Audio", type="primary"):
     else:
         with st.spinner("Generando audio..."):
             try:
-                # Configurar el texto de entrada
                 synthesis_input = texttospeech.SynthesisInput(text=texto_input)
 
-                # Configurar los parámetros de voz
                 voice = texttospeech.VoiceSelectionParams(
                     language_code="cmn-CN",
                     name=voz_code
                 )
 
-                # Configurar el formato del archivo y velocidad
                 audio_config = texttospeech.AudioConfig(
                     audio_encoding=texttospeech.AudioEncoding.MP3,
                     speaking_rate=velocidad
                 )
 
-                # Llamar a la API de Google Cloud Text-to-Speech
                 response = client.synthesize_speech(
                     input=synthesis_input,
                     voice=voice,
                     audio_config=audio_config
                 )
 
-                # Mostrar reproductor de audio
                 st.success("¡Audio generado con éxito!")
                 st.audio(response.audio_content, format="audio/mp3")
 
-                # Botón para descargar el MP3
                 st.download_button(
                     label="📥 Descargar MP3",
                     data=response.audio_content,
