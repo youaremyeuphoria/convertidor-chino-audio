@@ -23,9 +23,14 @@ client = None
 
 if "gcp_service_account" in st.secrets:
     try:
-        creds = service_account.Credentials.from_service_account_info(
-            st.secrets["gcp_service_account"]
-        )
+        # Convertir Secrets a un diccionario modificable
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        
+        # Ajustar los saltos de línea de la clave privada
+        if "private_key" in creds_dict:
+            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+            
+        creds = service_account.Credentials.from_service_account_info(creds_dict)
         client = texttospeech.TextToSpeechClient(credentials=creds)
     except Exception as e:
         st.error(f"Error al leer credenciales desde Secrets: {e}")
