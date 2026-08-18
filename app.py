@@ -1,6 +1,7 @@
 import os
 import glob
 import json
+import base64
 import streamlit as st
 from google.cloud import texttospeech
 from google.oauth2 import service_account
@@ -18,39 +19,29 @@ st.title("🔊 Texto a Audio en Chino Mandarín")
 st.write("Ingresa un texto en caracteres chinos (Hanzi) o Pinyin para generar su audio natural.")
 
 # ---------------------------------------------------------
-# Carga de credenciales
+# Carga de credenciales via Base64
 # ---------------------------------------------------------
 client = None
 
-if "gcp_service_account" in st.secrets:
+if "GCP_BASE64" in st.secrets:
     try:
-        # Convertimos las credenciales de Secrets a un diccionario estándar
-        info = dict(st.secrets["gcp_service_account"])
+        # Obtener y limpiar posibles comillas o espacios extras
+        b64_str = str(st.secrets["GCP_BASE64"]).strip().strip("'\"")
         
-        # Limpieza profunda de la clave privada
-        if "private_key" in info:
-            pk = str(info["private_key"])
+        # Ajustar el padding base64 si hiciera falta
+        missing_padding = len(b64_str) % 4
+        if missing_padding:
+            b64_str += '=' * (4 - missing_padding)
             
-            # Quitar comillas extra si las hubiera al inicio/final
-            pk = pk.strip("'\"")
-            
-            # Reemplazar saltos de línea escapados '\\n' por '\n' real
-            pk = pk.replace("\\n", "\n")
-            
-            # Normalizar los bordes PEM
-            if "-----BEGIN PRIVATE KEY-----" in pk and "-----END PRIVATE KEY-----" in pk:
-                body = pk.split("-----BEGIN PRIVATE KEY-----")[1].split("-----END PRIVATE KEY-----")[0].strip()
-                # Reconstruir la estructura PEM limpia
-                pk = f"-----BEGIN PRIVATE KEY-----\n{body}\n-----END PRIVATE KEY-----\n"
-            
-            info["private_key"] = pk
-
+        json_bytes = base64.b64decode(b64_str)
+        info = json.loads(json_bytes.decode("utf-8"))
+        
         creds = service_account.Credentials.from_service_account_info(info)
         client = texttospeech.TextToSpeechClient(credentials=creds)
     except Exception as e:
-        st.error(f"Error al leer gcp_service_account desde Secrets: {e}")
+        st.error(f"Error al decodificar GCP_BASE64 desde Secrets: {e}")
 
-# Opción local si no hay Secrets
+# Opción local por si pruebas en tu Mac sin Secrets
 if not client:
     base_dir = os.path.dirname(os.path.abspath(__file__))
     json_files = glob.glob(os.path.join(base_dir, "*.json"))
