@@ -23,10 +23,10 @@ client = None
 
 if "gcp_service_account" in st.secrets:
     try:
-        # Convertir Secrets a un diccionario modificable
+        # Convertir la estructura de Secrets a un diccionario estándar
         creds_dict = dict(st.secrets["gcp_service_account"])
         
-        # Ajustar los saltos de línea de la clave privada
+        # Corregir saltos de línea de la clave privada PEM
         if "private_key" in creds_dict:
             creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
             
@@ -35,7 +35,7 @@ if "gcp_service_account" in st.secrets:
     except Exception as e:
         st.error(f"Error al leer credenciales desde Secrets: {e}")
 
-# Opción local por si ejecutas en tu Mac
+# Respaldo para ejecución local en Mac
 if not client:
     base_dir = os.path.dirname(os.path.abspath(__file__))
     json_files = glob.glob(os.path.join(base_dir, "*.json"))
