@@ -15,7 +15,20 @@ st.title("🔊 Texto a Audio en Chino Mandarín")
 st.write(
     "Ingresa un texto en caracteres chinos (Hanzi) o Pinyin "
     "para generar su audio natural."
+
+    
 )
+
+# Información de la autora
+with st.sidebar:
+    st.header("Sobre la aplicación")
+    st.write("Desarrollada por **Agustina Canterino**")
+
+    st.link_button(
+        "💼 Conecta conmigo en LinkedIn",
+        "https://www.linkedin.com/in/agustina-canterino/",
+        use_container_width=True,
+    )
 
 
 @st.cache_resource
