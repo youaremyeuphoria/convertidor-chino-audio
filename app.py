@@ -9,22 +9,24 @@ st.set_page_config(
     layout="centered"
 )
 
-# Título e instrucciones
+# Título de la aplicación
 st.title("🔊 Texto a Audio en Chino Mandarín")
 st.write("Ingresa un texto en caracteres chinos (Hanzi) o Pinyin para generar su audio natural.")
 
-# Función para obtener y autenticar el cliente de Google Cloud TTS
+# Cargar las credenciales desde los secrets de Streamlit y crear el cliente
 @st.cache_resource
 def get_tts_client():
     if "gcp_service_account" in st.secrets:
-        # Convertir la sección de secrets en un diccionario de Python
-        info = dict(st.secrets["gcp_service_account"])
+        # Cargar las credenciales directamente desde st.secrets
+        credentials_info = dict(st.secrets["gcp_service_account"])
         
-        # Corregir saltos de línea en la clave privada si vienen escapados
-        if "private_key" in info:
-            info["private_key"] = info["private_key"].replace("\\n", "\n")
+        # Formatear saltos de línea si vienen escapados en la clave privada
+        if "private_key" in credentials_info:
+            credentials_info["private_key"] = credentials_info["private_key"].replace("\\n", "\n")
             
-        credentials = service_account.Credentials.from_service_account_info(info)
+        credentials = service_account.Credentials.from_service_account_info(
+            credentials_info
+        )
         return texttospeech.TextToSpeechClient(credentials=credentials)
     else:
         st.error("⚠️ No se encontró la sección [gcp_service_account] en los Secrets de Streamlit.")
@@ -32,14 +34,14 @@ def get_tts_client():
 
 client = get_tts_client()
 
-# Área de texto de entrada
+# Área de texto para la entrada del usuario
 texto_chino = st.text_area(
     "Texto en chino:",
     placeholder="Escribe o pega aquí, ej: 店员笑着跟客人说话",
     height=120
 )
 
-# Opciones de voz y velocidad
+# Opciones de selección de voz y velocidad
 col1, col2 = st.columns(2)
 
 with col1:
@@ -56,7 +58,7 @@ with col1:
 with col2:
     velocidad = st.slider("Velocidad de lectura", min_value=0.5, max_value=1.5, value=0.95, step=0.05)
 
-# Botón para generar audio
+# Botón para solicitar la síntesis de voz
 if st.button("✨ Generar Audio", type="primary"):
     if not texto_chino.strip():
         st.warning("Por favor, ingresa algún texto antes de generar el audio.")
@@ -65,30 +67,30 @@ if st.button("✨ Generar Audio", type="primary"):
     else:
         try:
             with st.spinner("Generando audio..."):
-                # Configurar la entrada de texto
+                # Configurar entrada de texto
                 synthesis_input = texttospeech.SynthesisInput(text=texto_chino)
 
-                # Configurar la voz
+                # Configurar voz seleccionada
                 voice_code = opciones_voz[voz_seleccionada]
                 voice = texttospeech.VoiceSelectionParams(
                     language_code="cmn-CN",
                     name=voice_code
                 )
 
-                # Configurar el formato del audio de salida y velocidad
+                # Configurar parámetros del audio
                 audio_config = texttospeech.AudioConfig(
                     audio_encoding=texttospeech.AudioEncoding.MP3,
                     speaking_rate=velocidad
                 )
 
-                # Realizar la petición a la API
+                # Petición a la API de Google Text-to-Speech
                 response = client.synthesize_speech(
                     input=synthesis_input,
                     voice=voice,
                     audio_config=audio_config
                 )
 
-                # Reproducir el audio resultante
+                # Mostrar reproductor de audio con el resultado
                 st.audio(response.audio_content, format="audio/mp3")
                 st.success("¡Audio generado con éxito!")
 
