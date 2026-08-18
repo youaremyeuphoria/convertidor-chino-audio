@@ -15,23 +15,17 @@ client = None
 # Opción A: Intentar cargar desde Secrets de Streamlit Cloud
 if "gcp_service_account" in st.secrets:
     try:
-        creds = service_account.Credentials.from_service_account_info(
-            st.secrets["gcp_service_account"]
-        )
+        # Convertimos st.secrets a un diccionario de Python
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        
+        # Corregir los saltos de línea de la private_key si se guardaron mal
+        if "private_key" in creds_dict:
+            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+
+        creds = service_account.Credentials.from_service_account_info(creds_dict)
         client = texttospeech.TextToSpeechClient(credentials=creds)
     except Exception as e:
         st.error(f"Error al leer las credenciales desde Secrets: {e}")
-
-# Opción B: Si no está en Secrets, buscar el archivo .json local
-if not client:
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    json_files = glob.glob(os.path.join(base_dir, "*.json"))
-    if json_files:
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = json_files[0]
-        client = texttospeech.TextToSpeechClient()
-    else:
-        st.error("⚠️ No se encontró la clave de credenciales de Google Cloud.")
-
 # Área de texto e interfaz
 texto = st.text_area("Texto en chino:", placeholder="Escribe o pega aquí, ej: 店员笑着跟客人说话", height=120)
 
