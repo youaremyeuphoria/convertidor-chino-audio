@@ -25,16 +25,18 @@ client = None
 
 if "GCP_BASE64" in st.secrets:
     try:
-        # Obtener y limpiar posibles comillas o espacios extras
         b64_str = str(st.secrets["GCP_BASE64"]).strip().strip("'\"")
         
-        # Ajustar el padding base64 si hiciera falta
         missing_padding = len(b64_str) % 4
         if missing_padding:
             b64_str += '=' * (4 - missing_padding)
             
         json_bytes = base64.b64decode(b64_str)
         info = json.loads(json_bytes.decode("utf-8"))
+        
+        # Corrección de saltos de línea en la clave privada
+        if "private_key" in info:
+            info["private_key"] = info["private_key"].replace("\\n", "\n")
         
         creds = service_account.Credentials.from_service_account_info(info)
         client = texttospeech.TextToSpeechClient(credentials=creds)
